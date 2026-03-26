@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId)
+        && request.resource.data.id == userId
+        && request.resource.data.email is string
+        && request.resource.data.username is string
+        && request.resource.data.publicKey is string
+        && request.resource.data.keys().hasOnly([
+          'id', 'email', 'username', 'phone', 'publicKey', 'createdAt', 'updatedAt'
+        ]);
+      allow update: if isOwner(userId)
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.username is string
+        && request.resource.data.publicKey is string
+        && request.resource.data.keys().hasOnly([
+          'id', 'email', 'username', 'phone', 'publicKey', 'createdAt', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    match /chats/{chatId} {
+      allow read, update: if isSignedIn()
+        && request.auth.uid in resource.data.participants;
+      allow create: if isSignedIn()
+        && request.auth.uid in request.resource.data.participants
+        && request.resource.data.participants.size() == 2
+        && request.resource.data.keys().hasOnly(['participants', 'lastMessage', 'updatedAt']);
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow create: if isSignedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.messageType == 'text'
+          && request.resource.data.encryptionType == 'nacl'
+          && request.resource.data.keys().hasOnly([
+            'senderId',
+            'receiverId',
+            'encryptedText',
+            'iv',
+            'senderEphemeralPublicKey',
+            'senderSelfEncryptedText',
+            'senderSelfIv',
+            'senderSelfEphemeralPublicKey',
+            'encryptionType',
+            'messageType',
+            'status',
+            'createdAt'
+          ]);
+        allow update: if isSignedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status']);
+      }
+
+      match /typing/{userId} {
+        allow read: if isSignedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow write: if isSignedIn()
+          && request.auth.uid == userId
+          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants
+          && request.resource.data.keys().hasOnly(['isTyping', 'updatedAt']);
+      }
+    }
+  }
+}
