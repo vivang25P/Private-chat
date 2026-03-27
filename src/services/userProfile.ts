@@ -30,15 +30,19 @@ export async function ensureUserProfile({
   publicKey,
 }: EnsureUserProfileParams): Promise<void> {
   const fallbackKeys = getOrCreateUserKeyPair()
+  const userRef = doc(db, 'users', userId)
+  const existingSnapshot = await getDoc(userRef)
+  const existingData = existingSnapshot.exists() ? existingSnapshot.data() : null
   await setDoc(
-    doc(db, 'users', userId),
+    userRef,
     {
       id: userId,
-      email: email ?? '',
-      username: username?.trim() || (email ? email.split('@')[0] : 'user'),
-      phone: phone?.trim() || '',
-      publicKey: publicKey ?? fallbackKeys.publicKey,
-      createdAt: serverTimestamp(),
+      email: existingData?.email ?? email ?? '',
+      username:
+        username?.trim() || existingData?.username || (email ? email.split('@')[0] : 'user'),
+      phone: phone?.trim() || existingData?.phone || '',
+      publicKey: publicKey ?? existingData?.publicKey ?? fallbackKeys.publicKey,
+      createdAt: existingData?.createdAt ?? serverTimestamp(),
       updatedAt: serverTimestamp(),
     },
     { merge: true },

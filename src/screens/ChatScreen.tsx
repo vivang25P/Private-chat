@@ -1,6 +1,6 @@
 import type { User } from 'firebase/auth'
 import { signOut } from 'firebase/auth'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MessageComposer } from '../components/MessageComposer'
 import { MessageList } from '../components/MessageList'
 import {
@@ -47,6 +47,7 @@ export function ChatScreen({ user, onError }: ChatScreenProps) {
   const [displayNameDraft, setDisplayNameDraft] = useState('')
 
   const localKeyPair = useMemo(() => getOrCreateUserKeyPair(), [])
+  const menuRef = useRef<HTMLDivElement | null>(null)
   const targetPeerUid = (fixedPeerUid ?? '').trim()
     ? (fixedPeerUid ?? '').trim()
     : isOwnerAccount
@@ -169,6 +170,28 @@ export function ChatScreen({ user, onError }: ChatScreenProps) {
     })
   }, [chatId, targetPeerUid])
 
+  useEffect(() => {
+    if (!showMenu) {
+      return
+    }
+    function handleOutsideClick(event: MouseEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setShowMenu(false)
+      }
+    }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setShowMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [showMenu])
+
   async function sendOneMessage(plaintext: string, tempId: string): Promise<void> {
     if (!chatId || !receiverPublicKey || isPeerKeyMismatch) {
       onError('Connecting chat... please wait.')
@@ -282,7 +305,7 @@ export function ChatScreen({ user, onError }: ChatScreenProps) {
             {isPeerTyping ? 'typing...' : isOnline ? 'Online' : 'Offline'}
           </p>
         </div>
-        <div className="relative">
+        <div className="relative" ref={menuRef}>
           <button
             type="button"
             className="grid h-8 w-8 place-items-center rounded-full border border-borderc text-slate-200"

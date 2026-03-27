@@ -1,8 +1,13 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { onAuthStateChanged, type User } from 'firebase/auth'
-import { ChatScreen } from './screens/ChatScreen'
-import { AuthScreen } from './screens/AuthScreen'
 import { auth } from './services/firebase'
+
+const ChatScreen = lazy(() =>
+  import('./screens/ChatScreen').then((module) => ({ default: module.ChatScreen })),
+)
+const AuthScreen = lazy(() =>
+  import('./screens/AuthScreen').then((module) => ({ default: module.AuthScreen })),
+)
 
 function App() {
   const [authUser, setAuthUser] = useState<User | null>(null)
@@ -27,9 +32,25 @@ function App() {
           <p className="text-sm text-slate-300">Initializing secure chat...</p>
         </main>
       ) : authUser ? (
-        <ChatScreen user={authUser} onError={setErrorMessage} />
+        <Suspense
+          fallback={
+            <main className="grid min-h-screen place-items-center px-4">
+              <p className="text-sm text-slate-300">Loading chat...</p>
+            </main>
+          }
+        >
+          <ChatScreen user={authUser} onError={setErrorMessage} />
+        </Suspense>
       ) : (
-        <AuthScreen onError={setErrorMessage} />
+        <Suspense
+          fallback={
+            <main className="grid min-h-screen place-items-center px-4">
+              <p className="text-sm text-slate-300">Loading auth...</p>
+            </main>
+          }
+        >
+          <AuthScreen onError={setErrorMessage} />
+        </Suspense>
       )}
       {errorMessage ? (
         <aside

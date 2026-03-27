@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "firestore:deploy": "npx firebase-tools deploy --only firestore:rules",
+    "firestore:db:get": "npx firebase-tools firestore:databases:get"
   },
   "dependencies": {
     "emoji-picker-react": "^4.18.0",
