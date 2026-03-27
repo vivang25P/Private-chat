@@ -373,7 +373,7 @@ export function ChatScreen({ user, onError }: ChatScreenProps) {
           <p>You are offline. Messages will fail until connection is restored.</p>
         </section>
       ) : null}
-      <section className="mx-2 mt-2 flex-1 overflow-y-auto rounded-2xl border border-borderc bg-black px-3 py-3 md:mx-0 md:min-h-[58vh] md:max-h-[64vh] md:bg-card">
+      <section className="hide-scrollbar mx-2 mt-2 flex-1 overflow-y-auto rounded-2xl border border-borderc bg-black px-3 py-3 md:mx-0 md:min-h-[58vh] md:max-h-[64vh] md:bg-card">
         {isChatLoading ? (
           <div className="grid min-h-[220px] place-items-center">
             <p>Connecting encrypted chat...</p>

@@ -8,4 +8,19 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] })
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/firebase/')) {
+            return 'firebase'
+          }
+          if (id.includes('node_modules/tweetnacl/')) {
+            return 'crypto'
+          }
+          return undefined
+        },
+      },
+    },
+  },
 })

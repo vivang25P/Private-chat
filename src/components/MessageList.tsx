@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { UiMessage } from '../services/types'
 
 interface MessageListProps {
@@ -23,6 +23,22 @@ export function MessageList({
   onRetry,
   peerInitial,
 }: MessageListProps) {
+  const listRef = useRef<HTMLUListElement | null>(null)
+  const endRef = useRef<HTMLDivElement | null>(null)
+  const [isNearBottom, setIsNearBottom] = useState(true)
+
+  useEffect(() => {
+    // Always jump to bottom on first render.
+    if (messages.length <= 1) {
+      endRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' })
+      return
+    }
+    // Smart autoscroll: only jump if user is already near bottom.
+    if (isNearBottom) {
+      endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    }
+  }, [isNearBottom, messages.length])
+
   const rendered = useMemo(() => {
     let previousDay = ''
     let previousSender = ''
@@ -37,7 +53,20 @@ export function MessageList({
   }, [messages])
 
   return (
-    <ul className="flex list-none flex-col gap-2 p-0" aria-label="Messages">
+    <ul
+      ref={listRef}
+      className="flex list-none flex-col gap-2 p-0"
+      aria-label="Messages"
+      onScroll={() => {
+        const container = listRef.current?.parentElement
+        if (!container) {
+          return
+        }
+        const distanceFromBottom =
+          container.scrollHeight - container.scrollTop - container.clientHeight
+        setIsNearBottom(distanceFromBottom < 80)
+      }}
+    >
       {rendered.map(({ message, day, showDateSeparator, groupedWithPrevious }) => {
         const isOwn = message.senderId === currentUserId
         const status = message.status.seen
@@ -97,6 +126,9 @@ export function MessageList({
           </Fragment>
         )
       })}
+      <li aria-hidden="true">
+        <div ref={endRef} />
+      </li>
     </ul>
   )
 }

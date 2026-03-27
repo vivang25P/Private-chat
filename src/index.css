@@ -9,3 +9,12 @@
     @apply m-0 min-h-screen bg-appbg text-slate-100 antialiased;
   }
 }
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
