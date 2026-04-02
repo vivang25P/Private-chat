@@ -29,6 +29,7 @@ export interface EncryptedPayload {
 export interface MessageDocument extends EncryptedPayload {
   senderId: string
   receiverId: string
+  clientMessageId?: string
   senderSelfEncryptedText?: string
   senderSelfIv?: string
   senderSelfEphemeralPublicKey?: string
@@ -43,6 +44,7 @@ export interface UiMessage {
   id: string
   senderId: string
   receiverId: string
+  clientMessageId?: string
   messageType: 'text'
   status: MessageStatus
   createdAt: Date

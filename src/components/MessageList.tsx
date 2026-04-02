@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef } from 'react'
 import type { UiMessage } from '../services/types'
 
 interface MessageListProps {
@@ -6,6 +6,7 @@ interface MessageListProps {
   messages: UiMessage[]
   onRetry: (messageId: string) => Promise<void>
   peerInitial: string
+  isPeerTyping: boolean
 }
 
 function getDayLabel(date: Date): string {
@@ -22,22 +23,29 @@ export function MessageList({
   messages,
   onRetry,
   peerInitial,
+  isPeerTyping,
 }: MessageListProps) {
-  const listRef = useRef<HTMLUListElement | null>(null)
+  const scrollRef = useRef<HTMLDivElement | null>(null)
   const endRef = useRef<HTMLDivElement | null>(null)
-  const [isNearBottom, setIsNearBottom] = useState(true)
+  const previousMessageCountRef = useRef(0)
 
-  useEffect(() => {
-    // Always jump to bottom on first render.
-    if (messages.length <= 1) {
-      endRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' })
+  function scrollToBottom(forceSmooth = false): void {
+    const container = scrollRef.current
+    if (!container) {
       return
     }
-    // Smart autoscroll: only jump if user is already near bottom.
-    if (isNearBottom) {
-      endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-    }
-  }, [isNearBottom, messages.length])
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: forceSmooth ? 'smooth' : 'auto',
+    })
+    endRef.current?.scrollIntoView({ behavior: forceSmooth ? 'smooth' : 'auto', block: 'end' })
+  }
+
+  useEffect(() => {
+    const hasNewMessage = messages.length > previousMessageCountRef.current
+    scrollToBottom(hasNewMessage)
+    previousMessageCountRef.current = messages.length
+  }, [isPeerTyping, messages.length])
 
   const rendered = useMemo(() => {
     let previousDay = ''
@@ -53,19 +61,13 @@ export function MessageList({
   }, [messages])
 
   return (
+    <div
+      ref={scrollRef}
+      className="hide-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain [scrollbar-gutter:stable] [scroll-behavior:smooth] [will-change:scroll-position]"
+    >
     <ul
-      ref={listRef}
-      className="flex list-none flex-col gap-2 p-0"
+      className="flex list-none flex-col gap-2 p-0 pb-2"
       aria-label="Messages"
-      onScroll={() => {
-        const container = listRef.current?.parentElement
-        if (!container) {
-          return
-        }
-        const distanceFromBottom =
-          container.scrollHeight - container.scrollTop - container.clientHeight
-        setIsNearBottom(distanceFromBottom < 80)
-      }}
     >
       {rendered.map(({ message, day, showDateSeparator, groupedWithPrevious }) => {
         const isOwn = message.senderId === currentUserId
@@ -126,9 +128,22 @@ export function MessageList({
           </Fragment>
         )
       })}
+      {isPeerTyping ? (
+        <li className="flex justify-start">
+          <div className="mr-2 h-6 w-6 min-w-6" />
+          <article className="max-w-[80%] rounded-2xl border border-borderc bg-zinc-900 px-3 py-2 text-slate-100">
+            <div className="flex items-center gap-1.5" aria-label="Typing">
+              <span className="h-2 w-2 rounded-full bg-zinc-300 animate-bounce [animation-delay:-0.2s]" />
+              <span className="h-2 w-2 rounded-full bg-zinc-300 animate-bounce [animation-delay:-0.1s]" />
+              <span className="h-2 w-2 rounded-full bg-zinc-300 animate-bounce" />
+            </div>
+          </article>
+        </li>
+      ) : null}
       <li aria-hidden="true">
         <div ref={endRef} />
       </li>
     </ul>
+    </div>
   )
 }

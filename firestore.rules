@@ -44,11 +44,13 @@ service cloud.firestore {
         allow create: if isSignedIn()
           && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants
           && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.clientMessageId is string
           && request.resource.data.messageType == 'text'
           && request.resource.data.encryptionType == 'nacl'
           && request.resource.data.keys().hasOnly([
             'senderId',
             'receiverId',
+            'clientMessageId',
             'encryptedText',
             'iv',
             'senderEphemeralPublicKey',
@@ -72,6 +74,15 @@ service cloud.firestore {
           && request.auth.uid == userId
           && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants
           && request.resource.data.keys().hasOnly(['isTyping', 'updatedAt']);
+      }
+
+      match /presence/{userId} {
+        allow read: if isSignedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow write: if isSignedIn()
+          && request.auth.uid == userId
+          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants
+          && request.resource.data.keys().hasOnly(['isPresent', 'updatedAt']);
       }
     }
   }

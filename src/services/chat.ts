@@ -37,6 +37,7 @@ interface SendEncryptedMessageParams {
   chatId: string
   senderId: string
   receiverId: string
+  clientMessageId: string
   payload: EncryptedPayload
   senderPayload: EncryptedPayload
 }
@@ -45,6 +46,7 @@ export async function sendEncryptedMessage({
   chatId,
   senderId,
   receiverId,
+  clientMessageId,
   payload,
   senderPayload,
 }: SendEncryptedMessageParams): Promise<string> {
@@ -52,6 +54,7 @@ export async function sendEncryptedMessage({
   const created = await addDoc(messageCollectionRef, {
     senderId,
     receiverId,
+    clientMessageId,
     encryptedText: payload.encryptedText,
     iv: payload.iv,
     senderEphemeralPublicKey: payload.senderEphemeralPublicKey,
@@ -91,6 +94,7 @@ export function subscribeToMessages(
           id: snapshotDoc.id,
           senderId: data.senderId as string,
           receiverId: data.receiverId as string,
+          clientMessageId: data.clientMessageId as string | undefined,
           encryptedText: data.encryptedText as string,
           iv: data.iv as string,
           senderEphemeralPublicKey: data.senderEphemeralPublicKey as string,
@@ -162,6 +166,50 @@ export async function setTypingStatus(
   } catch {
     // Typing is optional UX; do not block chat on rule mismatch.
   }
+}
+
+export async function setChatScreenPresence(
+  chatId: string,
+  userId: string,
+  isPresent: boolean,
+): Promise<void> {
+  try {
+    await setDoc(
+      doc(db, 'chats', chatId, 'presence', userId),
+      { isPresent, updatedAt: serverTimestamp() },
+      { merge: true },
+    )
+  } catch {
+    // Presence is optional UX; do not block chat on rule mismatch.
+  }
+}
+
+export function subscribeChatScreenPresence(
+  chatId: string,
+  peerUserId: string,
+  onUpdate: (isPresent: boolean) => void,
+  onError?: (error: unknown) => void,
+): () => void {
+  return onSnapshot(
+    doc(db, 'chats', chatId, 'presence', peerUserId),
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        onUpdate(false)
+        return
+      }
+      const data = snapshot.data()
+      const updatedAt = data.updatedAt as Timestamp | undefined
+      const lastSeenMs = updatedAt?.toMillis() ?? 0
+      const isFresh = Date.now() - lastSeenMs <= 45_000
+      onUpdate(Boolean(data.isPresent) && isFresh)
+    },
+    (error) => {
+      onUpdate(false)
+      if (onError) {
+        onError(error)
+      }
+    },
+  )
 }
 
 export function subscribeTypingStatus(
